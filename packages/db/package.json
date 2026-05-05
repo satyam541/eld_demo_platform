@@ -1,0 +1,38 @@
+{
+    "name": "@eld/db",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "build": "echo 'placeholder' && exit 0",
+        "lint": "echo 'placeholder' && exit 0",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "test": "echo 'placeholder' && exit 0",
+        "clean": "rimraf dist .turbo node_modules/.prisma",
+        "db:generate": "prisma generate",
+        "db:migrate": "prisma migrate dev",
+        "db:deploy": "prisma migrate deploy",
+        "db:reset": "prisma migrate reset --force",
+        "db:seed": "tsx prisma/seed.ts",
+        "db:timescale": "psql \"$DATABASE_URL\" -f sql/001_init_timescale.sql"
+    },
+    "prisma": {
+        "seed": "tsx prisma/seed.ts"
+    },
+    "dependencies": {
+        "@prisma/client": "^5.22.0",
+        "bcryptjs": "^2.4.3"
+    },
+    "devDependencies": {
+        "@types/bcryptjs": "^2.4.6",
+        "prisma": "^5.22.0",
+        "rimraf": "^6.0.1",
+        "tsx": "^4.19.0",
+        "typescript": "^5.6.0"
+    }
+}

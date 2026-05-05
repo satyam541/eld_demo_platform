@@ -1,0 +1,97 @@
+# Production stack for the ELD platform (Hetzner / Coolify / any Docker host).
+#
+# Volumes are bind-mounted to ./data so backups are simple. Secrets come from
+# the .env file next to this file (use .env.example as template).
+
+services:
+  postgres:
+    image: timescale/timescaledb-ha:pg16-latest
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-eld}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_DB: ${POSTGRES_DB:-eld}
+    volumes:
+      - ./data/pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-eld}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [eld]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?required}"]
+    volumes:
+      - ./data/redis:/data
+    networks: [eld]
+
+  soketi:
+    image: quay.io/soketi/soketi:1.6-16-debian
+    restart: unless-stopped
+    environment:
+      SOKETI_DEBUG: "0"
+      SOKETI_DEFAULT_APP_ID: ${SOKETI_APP_ID}
+      SOKETI_DEFAULT_APP_KEY: ${SOKETI_APP_KEY}
+      SOKETI_DEFAULT_APP_SECRET: ${SOKETI_APP_SECRET}
+    ports:
+      - "6001:6001"
+    networks: [eld]
+
+  ingest-worker:
+    build:
+      context: .
+      dockerfile: apps/ingest-worker/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-eld}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-eld}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      SOKETI_HOST: http://soketi:6001
+      SOKETI_APP_ID: ${SOKETI_APP_ID}
+      SOKETI_APP_KEY: ${SOKETI_APP_KEY}
+      SOKETI_APP_SECRET: ${SOKETI_APP_SECRET}
+      INGEST_TCP_PORT: "2404"
+      HEALTH_HTTP_PORT: "9090"
+      ALLOWED_SOURCES: ${INGEST_ALLOWED_SOURCES:-}
+      IDLE_TIMEOUT_SEC: "600"
+      NODE_ENV: production
+    ports:
+      - "2404:2404"   # Geometris TCP CSV — open this on the firewall
+      - "9090:9090"   # /health (keep internal, expose only to monitoring)
+    networks: [eld]
+
+  portal:
+    build:
+      context: .
+      dockerfile: apps/portal/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-eld}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-eld}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?required}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      AUTH_SECRET: ${NEXTAUTH_SECRET}
+      AUTH_TRUST_HOST: "true"
+      SOKETI_HOST: http://soketi:6001
+      SOKETI_APP_ID: ${SOKETI_APP_ID}
+      SOKETI_APP_KEY: ${SOKETI_APP_KEY}
+      SOKETI_APP_SECRET: ${SOKETI_APP_SECRET}
+      NEXT_PUBLIC_SOKETI_KEY: ${SOKETI_APP_KEY}
+      NEXT_PUBLIC_SOKETI_HOST: ${PUBLIC_SOKETI_HOST}
+      NEXT_PUBLIC_SOKETI_PORT: ${PUBLIC_SOKETI_PORT:-443}
+      NEXT_PUBLIC_MAPTILER_KEY: ${MAPTILER_API_KEY}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    networks: [eld]
+
+networks:
+  eld:
+    driver: bridge

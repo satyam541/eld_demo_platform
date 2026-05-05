@@ -1,0 +1,61 @@
+{
+    "$schema": "https://turbo.build/schema.json",
+    "globalDependencies": [
+        ".env",
+        ".env.local",
+        "tsconfig.base.json"
+    ],
+    "globalEnv": [
+        "NODE_ENV",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "MQTT_URL",
+        "MQTT_USERNAME",
+        "MQTT_PASSWORD",
+        "SOKETI_HOST",
+        "SOKETI_APP_ID",
+        "SOKETI_APP_KEY",
+        "SOKETI_APP_SECRET",
+        "NEXTAUTH_SECRET",
+        "NEXTAUTH_URL",
+        "MAPTILER_API_KEY",
+        "SENTRY_DSN"
+    ],
+    "tasks": {
+        "build": {
+            "dependsOn": [
+                "^build"
+            ],
+            "outputs": [
+                ".next/**",
+                "!.next/cache/**",
+                "dist/**",
+                "build/**"
+            ]
+        },
+        "dev": {
+            "cache": false,
+            "persistent": true
+        },
+        "lint": {
+            "outputs": []
+        },
+        "typecheck": {
+            "dependsOn": [
+                "^build"
+            ],
+            "outputs": []
+        },
+        "test": {
+            "dependsOn": [
+                "^build"
+            ],
+            "outputs": [
+                "coverage/**"
+            ]
+        },
+        "clean": {
+            "cache": false
+        }
+    }
+}

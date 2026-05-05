@@ -1,0 +1,222 @@
+// Geometris ELD platform — Prisma schema
+// PostgreSQL 16 + TimescaleDB. The `Location` table is converted to a
+// hypertable by sql/001_init_timescale.sql AFTER `prisma migrate`.
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Tenancy + identity
+// ─────────────────────────────────────────────────────────────────────
+
+model Fleet {
+    id        String   @id @default(cuid())
+    name      String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    users     User[]
+    devices   Device[]
+    vehicles  Vehicle[]
+    drivers   Driver[]
+    geofences Geofence[]
+}
+
+model User {
+    id           String   @id @default(cuid())
+    fleetId      String
+    fleet        Fleet    @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+    email        String   @unique
+    passwordHash String
+    name         String
+    role         UserRole @default(ADMIN)
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+}
+
+enum UserRole {
+    ADMIN
+    DISPATCHER
+    DRIVER
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Device + vehicle + driver
+// ─────────────────────────────────────────────────────────────────────
+
+model Device {
+    id           String       @id @default(cuid())
+    fleetId      String
+    fleet        Fleet        @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+    serialNumber String       @unique // Geometris factory SN, e.g. 88X150380033
+    imei         String?      @unique
+    model        String       @default("whereQube")
+    firmware     String?
+    iccid        String?
+    // Last known param 12 layout (CSV column order). When null, parser
+    // assumes the documented default. See docs/vendor/geometris-packet-format.md
+    paramTwelve  String?
+    // Current value of param 4 (data server target). Informational only.
+    paramFour    String?
+    status       DeviceStatus @default(UNKNOWN)
+    lastSeenAt   DateTime?
+    vehicleId    String?      @unique
+    vehicle      Vehicle?     @relation(fields: [vehicleId], references: [id])
+    createdAt    DateTime     @default(now())
+    updatedAt    DateTime     @updatedAt
+
+    events    Event[]
+    locations Location[]
+    trips     Trip[]
+    dtcs      Dtc[]
+
+    @@index([fleetId])
+    @@index([lastSeenAt])
+}
+
+enum DeviceStatus {
+    UNKNOWN
+    ACTIVE
+    INACTIVE
+    RETIRED
+}
+
+model Vehicle {
+    id        String   @id @default(cuid())
+    fleetId   String
+    fleet     Fleet    @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+    name      String
+    vin       String?
+    plate     String?
+    make      String?
+    model     String?
+    year      Int?
+    device    Device?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    trips             Trip[]
+    driverAssignments DriverAssignment[]
+
+    @@index([fleetId])
+}
+
+model Driver {
+    id        String   @id @default(cuid())
+    fleetId   String
+    fleet     Fleet    @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+    name      String
+    licenseNo String?
+    email     String?
+    phone     String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    assignments DriverAssignment[]
+    trips       Trip[]
+
+    @@index([fleetId])
+}
+
+model DriverAssignment {
+    id        String    @id @default(cuid())
+    driverId  String
+    driver    Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+    vehicleId String
+    vehicle   Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+    startedAt DateTime  @default(now())
+    endedAt   DateTime?
+
+    @@index([driverId])
+    @@index([vehicleId])
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Telemetry (high volume — Location is a TimescaleDB hypertable)
+// ─────────────────────────────────────────────────────────────────────
+
+model Location {
+    // Composite PK because hypertables require time in the PK.
+    ts         DateTime
+    deviceId   String
+    device     Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+    lat        Float
+    lon        Float
+    speedMph   Float?
+    heading    Float?
+    ignition   Boolean?
+    odometerMi Float?
+    numSats    Int?
+    reasonText String?
+    reasonCode Int?
+
+    @@id([ts, deviceId])
+    @@index([deviceId, ts(sort: Desc)])
+}
+
+model Event {
+    id         String   @id @default(cuid())
+    deviceId   String
+    device     Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+    ts         DateTime
+    reasonText String?
+    reasonCode Int?
+    rawCsv     String
+    formatCrc  String
+    payload    Json // full normalized packet (zod-validated)
+    createdAt  DateTime @default(now())
+
+    @@index([deviceId, ts(sort: Desc)])
+    @@index([reasonCode])
+}
+
+model Trip {
+    id          String    @id @default(cuid())
+    deviceId    String
+    device      Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+    vehicleId   String?
+    vehicle     Vehicle?  @relation(fields: [vehicleId], references: [id])
+    driverId    String?
+    driver      Driver?   @relation(fields: [driverId], references: [id])
+    startedAt   DateTime
+    endedAt     DateTime?
+    startLat    Float?
+    startLon    Float?
+    endLat      Float?
+    endLon      Float?
+    distanceMi  Float     @default(0)
+    maxSpeedMph Float?
+    createdAt   DateTime  @default(now())
+
+    @@index([deviceId, startedAt(sort: Desc)])
+}
+
+model Dtc {
+    id       String   @id @default(cuid())
+    deviceId String
+    device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+    ts       DateTime
+    code     String
+    source   String? // ECU bus
+    active   Boolean  @default(true)
+
+    @@index([deviceId, ts(sort: Desc)])
+}
+
+model Geofence {
+    id        String   @id @default(cuid())
+    fleetId   String
+    fleet     Fleet    @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+    name      String
+    geojson   Json // GeoJSON Polygon
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([fleetId])
+}
