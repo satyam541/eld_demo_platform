@@ -48,22 +48,21 @@ export type GeometrisCsvPacket = z.infer<typeof GeometrisCsvPacketSchema>;
 
 /**
  * BLE-decoded packet posted from the Flutter app to the portal API.
- * Source-of-truth: docs/vendor/geometris-ble-protocol.md
+ * Source-of-truth: lib/services/ble_service.dart in eld_flutter_demo_app
  */
 export const GeometrisBlePacketSchema = z.object({
   serialNumber: z.string().min(1),
-  receivedAt: z.string().datetime(),
-  vin: z.string().nullable(),
-  odometerKm: z.number().nullable(),
-  rpm: z.number().int().nullable(),
-  speedKph: z.number().nullable(),
-  engineHours: z.number().nullable(),
-  latitude: z.number().min(-90).max(90).nullable(),
-  longitude: z.number().min(-180).max(180).nullable(),
-  locTime: z.number().int().nullable(),
-  udrvCount: z.number().int().nullable(),
-  udrvReason: z.number().int().nullable(),
-  rawHex: z.string(),
+  eventUnixTime: z.number().int().nonnegative(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+  speedMph: z.number().nullable().optional(),
+  heading: z.number().nullable().optional(),
+  ignition: z.boolean().nullable().optional(),
+  odometerMiles: z.number().nullable().optional(),
+  rpm: z.number().int().nullable().optional(),
+  vin: z.string().nullable().optional(),
+  reasonText: z.string().nullable().optional(),
+  raw: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type GeometrisBlePacket = z.infer<typeof GeometrisBlePacketSchema>;

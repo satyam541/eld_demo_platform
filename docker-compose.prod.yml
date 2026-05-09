@@ -67,6 +67,10 @@ services:
     build:
       context: .
       dockerfile: apps/portal/Dockerfile
+      args:
+        NEXT_PUBLIC_SOKETI_KEY: ${SOKETI_APP_KEY}
+        NEXT_PUBLIC_SOKETI_HOST: ${PUBLIC_SOKETI_HOST}
+        NEXT_PUBLIC_SOKETI_PORT: ${PUBLIC_SOKETI_PORT:-443}
     restart: unless-stopped
     depends_on:
       postgres:
