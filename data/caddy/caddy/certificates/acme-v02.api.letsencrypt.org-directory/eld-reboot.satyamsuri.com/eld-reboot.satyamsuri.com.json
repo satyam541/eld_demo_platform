@@ -1,0 +1,19 @@
+{
+	"sans": [
+		"eld-reboot.satyamsuri.com"
+	],
+	"issuer_data": {
+		"url": "https://acme-v02.api.letsencrypt.org/acme/cert/05f428eca6c0a1782c4c93a4dc21175dfaba",
+		"ca": "https://acme-v02.api.letsencrypt.org/directory",
+		"account": "https://acme-v02.api.letsencrypt.org/acme/acct/3317957226",
+		"renewal_info": {
+			"suggestedWindow": {
+				"start": "2026-07-07T06:16:01Z",
+				"end": "2026-07-09T01:26:50Z"
+			},
+			"_uniqueIdentifier": "jw0TovYuftFQbDMYOF1ZjiNykco.BfQo7KbAoXgsTJOk3CEXXfq6",
+			"_retryAfter": "2026-05-09T10:54:10.311042875Z",
+			"_selectedTime": "2026-07-08T15:07:05Z"
+		}
+	}
+}

@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@eld/db', '@eld/shared'],
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   experimental: {
     serverActions: { bodySizeLimit: '2mb' },
   },

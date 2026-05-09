@@ -1,4 +1,3 @@
-# Multi-stage build for ingest-worker
 FROM node:22-alpine AS base
 RUN corepack enable
 WORKDIR /repo
@@ -13,14 +12,13 @@ RUN pnpm install --frozen-lockfile=false
 FROM deps AS build
 COPY . .
 RUN pnpm --filter @eld/db db:generate || true
+RUN pnpm --filter @eld/shared build
 RUN pnpm --filter ingest-worker build
 
 FROM node:22-alpine AS runtime
-WORKDIR /app
+RUN apk add --no-cache openssl
 ENV NODE_ENV=production
-COPY --from=build /repo/node_modules ./node_modules
-COPY --from=build /repo/packages ./packages
-COPY --from=build /repo/apps/ingest-worker/dist ./dist
-COPY --from=build /repo/apps/ingest-worker/package.json ./
+COPY --from=build /repo /repo
+WORKDIR /repo/apps/ingest-worker
 EXPOSE 2404 9090
 CMD ["node", "dist/server.js"]
