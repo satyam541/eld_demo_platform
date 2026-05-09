@@ -33,7 +33,7 @@ export default async function DevicesPage() {
                             <tr key={d.id} className="border-t">
                                 <td className="px-4 py-2 font-mono">{d.serialNumber}</td>
                                 <td className="px-4 py-2">{d.model}</td>
-                                <td className="px-4 py-2">{d.vehicle?.label ?? '—'}</td>
+                                <td className="px-4 py-2">{d.vehicle?.name ?? '—'}</td>
                                 <td className="px-4 py-2">{d.status}</td>
                                 <td className="px-4 py-2">
                                     {d.lastSeenAt

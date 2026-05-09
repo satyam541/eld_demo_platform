@@ -18,77 +18,43 @@ const pusher = (() => {
 
 export async function POST(req: Request) {
   let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
+  try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 });
   }
   const parsed = GeometrisBlePacketSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'validation', issues: parsed.error.issues },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'validation', issues: parsed.error.issues }, { status: 400 });
   }
   const pkt = parsed.data;
 
-  let device = await prisma.device.findUnique({
-    where: { serialNumber: pkt.serialNumber },
-  });
+  let device = await prisma.device.findUnique({ where: { serialNumber: pkt.serialNumber } });
   if (!device) {
-    const fleet =
-      (await prisma.fleet.findFirst({ orderBy: { createdAt: 'asc' } })) ??
-      (await prisma.fleet.create({
-        data: { id: 'pacific-eld', name: 'Pacific ELD' },
-      }));
+    const fleet = (await prisma.fleet.findFirst({ orderBy: { createdAt: 'asc' } })) ??
+      (await prisma.fleet.create({ data: { id: 'pacific-eld', name: 'Pacific ELD' } }));
     device = await prisma.device.create({
-      data: {
-        fleetId: fleet.id,
-        serialNumber: pkt.serialNumber,
-        model: 'whereQube',
-        status: 'ACTIVE',
-      },
+      data: { fleetId: fleet.id, serialNumber: pkt.serialNumber, model: 'whereQube', status: 'ACTIVE' },
     });
   }
-  const ts = new Date(pkt.eventUnixTime * 1000);
+
+  const ts = pkt.locTime ? new Date(pkt.locTime * 1000) : new Date(pkt.receivedAt);
+  const speedMph = pkt.speedKph != null ? pkt.speedKph * 0.621371 : null;
 
   await prisma.event.create({
-    data: {
-      deviceId: device.id,
-      ts,
-      reasonText: pkt.reasonText ?? 'BLE_PACKET',
-      payload: pkt as unknown as object,
-    },
+    data: { deviceId: device.id, ts, reasonText: 'BLE_PACKET', rawCsv: JSON.stringify(pkt), formatCrc: 'BLE', payload: pkt as unknown as object },
   });
 
   if (pkt.latitude !== null && pkt.longitude !== null) {
     await prisma.location.create({
-      data: {
-        ts,
-        deviceId: device.id,
-        lat: pkt.latitude,
-        lon: pkt.longitude,
-        speedMph: pkt.speedMph,
-        heading: pkt.heading,
-        ignition: pkt.ignition,
-      },
+      data: { ts, deviceId: device.id, lat: pkt.latitude, lon: pkt.longitude, speedMph,
+        odometerMi: pkt.odometerKm != null ? pkt.odometerKm * 0.621371 : null },
     });
     await pusher.trigger(channels.fleetLocations(device.fleetId), 'location', {
-      deviceSerial: pkt.serialNumber,
-      vehicleId: device.vehicleId,
-      lat: pkt.latitude,
-      lon: pkt.longitude,
-      speedMph: pkt.speedMph,
-      heading: pkt.heading,
-      ignition: pkt.ignition,
-      reason: pkt.reasonText,
-      ts: ts.toISOString(),
+      deviceSerial: pkt.serialNumber, vehicleId: device.vehicleId,
+      lat: pkt.latitude, lon: pkt.longitude, speedMph, heading: null, ignition: null,
+      reason: 'BLE_PACKET', ts: ts.toISOString(),
     });
   }
-  await prisma.device.update({
-    where: { id: device.id },
-    data: { lastSeenAt: ts },
-  });
 
+  await prisma.device.update({ where: { id: device.id }, data: { lastSeenAt: ts } });
   return NextResponse.json({ ok: true });
 }

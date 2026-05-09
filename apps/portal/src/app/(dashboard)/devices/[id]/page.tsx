@@ -34,7 +34,7 @@ export default async function DeviceDetail({
                 </h1>
                 <p className="text-gray-600">
                     {device.model} · {device.status} · vehicle:{' '}
-                    {device.vehicle?.label ?? '—'}
+                    {device.vehicle?.name ?? '—'}
                 </p>
             </div>
 

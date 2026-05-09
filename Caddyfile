@@ -1,0 +1,10 @@
+eld-reboot.satyamsuri.com {
+    encode zstd gzip
+
+    @ws path /app/* /apps/*
+    handle @ws {
+        reverse_proxy soketi:6001
+    }
+
+    reverse_proxy portal:3000
+}

@@ -5,7 +5,7 @@
 
 services:
   postgres:
-    image: timescale/timescaledb-ha:pg16-latest
+    image: timescale/timescaledb:latest-pg16
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-eld}
@@ -36,8 +36,6 @@ services:
       SOKETI_DEFAULT_APP_ID: ${SOKETI_APP_ID}
       SOKETI_DEFAULT_APP_KEY: ${SOKETI_APP_KEY}
       SOKETI_DEFAULT_APP_SECRET: ${SOKETI_APP_SECRET}
-    ports:
-      - "6001:6001"
     networks: [eld]
 
   ingest-worker:
@@ -88,9 +86,22 @@ services:
       NEXT_PUBLIC_SOKETI_PORT: ${PUBLIC_SOKETI_PORT:-443}
       NEXT_PUBLIC_MAPTILER_KEY: ${MAPTILER_API_KEY}
       NODE_ENV: production
-    ports:
-      - "3000:3000"
     networks: [eld]
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy:/data
+      - ./data/caddy-config:/config
+    networks: [eld]
+    depends_on:
+      - portal
+      - soketi
+
 
 networks:
   eld:

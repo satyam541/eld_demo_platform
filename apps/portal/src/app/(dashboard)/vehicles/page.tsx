@@ -7,11 +7,11 @@ async function createVehicle(formData: FormData) {
     const session = await auth();
     const fleetId = (session?.user as { fleetId?: string })?.fleetId;
     if (!fleetId) return;
-    const label = String(formData.get('label') ?? '').trim();
+    const name = String(formData.get('label') ?? '').trim();
     const vin = String(formData.get('vin') ?? '').trim() || null;
     const plate = String(formData.get('plate') ?? '').trim() || null;
-    if (!label) return;
-    await prisma.vehicle.create({ data: { fleetId, label, vin, plate } });
+    if (!name) return;
+    await prisma.vehicle.create({ data: { fleetId, name, vin, plate } });
     revalidatePath('/vehicles');
 }
 
@@ -66,7 +66,7 @@ export default async function VehiclesPage() {
                     <tbody>
                         {vehicles.map((v) => (
                             <tr key={v.id} className="border-t">
-                                <td className="px-4 py-2">{v.label}</td>
+                                <td className="px-4 py-2">{v.name}</td>
                                 <td className="px-4 py-2 font-mono">{v.vin ?? ''}</td>
                                 <td className="px-4 py-2">{v.plate ?? ''}</td>
                                 <td className="px-4 py-2 font-mono">

@@ -23,7 +23,7 @@ export default async function MapPage() {
                 ? {
                     deviceSerial: d.serialNumber,
                     vehicleId: d.vehicleId,
-                    vehicleLabel: d.vehicle?.label ?? d.serialNumber,
+                    vehicleLabel: d.vehicle?.name ?? d.serialNumber,
                     lat: loc.lat,
                     lon: loc.lon,
                     speedMph: loc.speedMph,

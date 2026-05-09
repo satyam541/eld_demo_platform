@@ -10,7 +10,7 @@ async function createDriver(formData: FormData) {
     const name = String(formData.get('name') ?? '').trim();
     const license = String(formData.get('license') ?? '').trim() || null;
     if (!name) return;
-    await prisma.driver.create({ data: { fleetId, name, licenseNumber: license } });
+    await prisma.driver.create({ data: { fleetId, name, licenseNo: license } });
     revalidatePath('/drivers');
 }
 
@@ -45,7 +45,7 @@ export default async function DriversPage() {
                         {drivers.map((d) => (
                             <tr key={d.id} className="border-t">
                                 <td className="px-4 py-2">{d.name}</td>
-                                <td className="px-4 py-2">{d.licenseNumber ?? '—'}</td>
+                                <td className="px-4 py-2">{d.licenseNo ?? '—'}</td>
                             </tr>
                         ))}
                     </tbody>
